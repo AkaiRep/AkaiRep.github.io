@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Тренажёр артиклей</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding-top: 40px;
+      background: #f7f7f7;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .top-bar {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 10px;
+    }
+
+    .back-button, .lang-button {
+      background: #ddd;
+      border: none;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 14px;
+      border-radius: 4px;
+    }
+
+    .trainer {
+      background: white;
+      padding: 20px 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      text-align: center;
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .section {
+      margin: 10px 0;
+    }
+
+    label {
+      margin-right: 15px;
+    }
+
+    input[type="text"] {
+      font-size: 1em;
+      padding: 5px;
+      width: 200px;
+    }
+
+    button {
+      padding: 5px 10px;
+      font-size: 1em;
+      margin-left: 10px;
+    }
+
+    #prompt {
+      font-size: 1.2em;
+      margin: 20px 0;
+    }
+
+    #result {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    table {
+      margin-top: 30px;
+      border-collapse: collapse;
+      width: 100%;
+      max-width: 700px;
+      font-size: 0.9em;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 6px 10px;
+      text-align: left;
+    }
+
+    th {
+      background: #eee;
+    }
+
+    .correct { color: green; }
+    .wrong { color: red; }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <button class="back-button" onclick="goBack()" id="btn-back">← Назад</button>
+    <button class="lang-button" onclick="toggleLang()" id="btn-lang">Deutsch</button>
+  </div>
+
+  <div class="trainer">
+    <h2 id="title">Тренировка артиклей</h2>
+
+    <div class="section">
+      <strong id="label-cases">Выберите падежи:</strong><br>
+      <label><input type="checkbox" class="case" value="Akkusativ" checked> Akkusativ</label>
+      <label><input type="checkbox" class="case" value="Dativ" checked> Dativ</label>
+    </div>
+
+    <div class="section">
+      <strong id="label-types">Выберите тип артикля:</strong><br>
+      <label><input type="checkbox" class="type" value="определенный" checked id="type-def"> Определённый</label>
+      <label><input type="checkbox" class="type" value="неопределенный" checked id="type-indef"> Неопределённый</label>
+    </div>
+
+    <div class="section">
+      <strong id="label-genders">Выберите род:</strong><br>
+      <label><input type="checkbox" class="gender" value="der" checked> der</label>
+      <label><input type="checkbox" class="gender" value="das" checked> das</label>
+      <label><input type="checkbox" class="gender" value="die" checked> die</label>
+      <label><input type="checkbox" class="gender" value="plural" checked> plural</label>
+    </div>
+
+    <div id="prompt">Загрузка...</div>
+    <input type="text" id="answer" placeholder="Введите артикль">
+    <button onclick="checkAnswer()" id="btn-submit">Ответить</button>
+    <div id="result"></div>
+  </div>
+
+  <table id="historyTable">
+    <thead>
+      <tr>
+        <th id="th-question">Вопрос</th>
+        <th id="th-your">Ваш ответ</th>
+        <th id="th-correct">Правильный</th>
+        <th id="th-status">Статус</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const articles = {
+      "Akkusativ": {
+        "der": { "определенный": "den", "неопределенный": "einen" },
+        "das": { "определенный": "das", "неопределенный": "ein" },
+        "die": { "определенный": "die", "неопределенный": "eine" },
+        "plural": { "определенный": "die", "неопределенный": null }
+      },
+      "Dativ": {
+        "der": { "определенный": "dem", "неопределенный": "einem" },
+        "das": { "определенный": "dem", "неопределенный": "einem" },
+        "die": { "определенный": "der", "неопределенный": "einer" },
+        "plural": { "определенный": "den", "неопределенный": null }
+      }
+    };
+
+    const translations = {
+      ru: {
+        back: "← Назад", lang: "Deutsch", title: "Тренировка артиклей",
+        cases: "Выберите падежи:", types: "Выберите тип артикля:", genders: "Выберите род:",
+        def: "Определённый", indef: "Неопределённый", submit: "Ответить",
+        question: "Вопрос", your: "Ваш ответ", correct: "Правильный", status: "Статус",
+        correctMsg: "✅ Верно!", wrongMsg: "❌ Неверно. Правильный ответ: ",
+        prep1: "для", prep2: "в"
+      },
+      de: {
+        back: "← Zurück", lang: "Русский", title: "Artikeltrainer",
+        cases: "Wähle den Fall:", types: "Wähle den Artikeltyp:", genders: "Wähle das Genus:",
+        def: "Bestimmt", indef: "Unbestimmt", submit: "Antworten",
+        question: "Frage", your: "Deine Antwort", correct: "Richtig", status: "Status",
+        correctMsg: "✅ Richtig!", wrongMsg: "❌ Falsch. Richtige Antwort: ",
+        prep1: "für", prep2: "im"
+      }
+    };
+
+    let currentLang = "ru";
+    let current = {};
+    let previousQuestionKey = null;
+    const history = [];
+
+    function toggleLang() {
+      currentLang = currentLang === "ru" ? "de" : "ru";
+      const t = translations[currentLang];
+
+      document.getElementById("btn-back").textContent = t.back;
+      document.getElementById("btn-lang").textContent = t.lang;
+      document.getElementById("title").textContent = t.title;
+      document.getElementById("label-cases").textContent = t.cases;
+      document.getElementById("label-types").textContent = t.types;
+      document.getElementById("label-genders").textContent = t.genders;
+      document.getElementById("type-def").nextSibling.textContent = " " + t.def;
+      document.getElementById("type-indef").nextSibling.textContent = " " + t.indef;
+      document.getElementById("btn-submit").textContent = t.submit;
+      document.getElementById("th-question").textContent = t.question;
+      document.getElementById("th-your").textContent = t.your;
+      document.getElementById("th-correct").textContent = t.correct;
+      document.getElementById("th-status").textContent = t.status;
+
+      updatePrompt(); // обновить текущий вопрос
+    }
+
+    function goBack() {
+      if (document.referrer) {
+        window.location.href = document.referrer;
+      } else {
+        alert(currentLang === "ru" ? "Нет предыдущей страницы." : "Keine vorherige Seite.");
+      }
+    }
+
+    function getSelectedValues(className) {
+      return Array.from(document.querySelectorAll("." + className + ":checked")).map(el => el.value);
+    }
+
+    function updatePrompt() {
+      const t = translations[currentLang];
+      if (current && current.gender && current.cas && current.type) {
+        const typeLabel = currentLang === "ru"
+          ? (current.type === "определенный" ? "определённый артикль" : "неопределённый артикль")
+          : (current.type === "определенный" ? "bestimmter Artikel" : "unbestimmter Artikel");
+
+        document.getElementById("prompt").textContent =
+          `${typeLabel} ${t.prep1} ${current.gender} ${t.prep2} ${current.cas}`;
+      }
+    }
+
+    function nextQuestion() {
+      const selectedCases = getSelectedValues("case");
+      const selectedTypes = getSelectedValues("type");
+      const selectedGenders = getSelectedValues("gender");
+
+      if (!selectedCases.length || !selectedTypes.length || !selectedGenders.length) {
+        document.getElementById("prompt").textContent = translations[currentLang].cases + " ❗";
+        return;
+      }
+
+      let tries = 0;
+      while (tries++ < 100) {
+        const gender = selectedGenders[Math.floor(Math.random() * selectedGenders.length)];
+        const cas = selectedCases[Math.floor(Math.random() * selectedCases.length)];
+        const type = selectedTypes[Math.floor(Math.random() * selectedTypes.length)];
+        const correct = articles[cas]?.[gender]?.[type];
+        const key = `${cas}-${gender}-${type}`;
+
+        if (correct && key !== previousQuestionKey) {
+          previousQuestionKey = key;
+          current = { gender, cas, type, correct };
+          updatePrompt();
+          document.getElementById("answer").value = "";
+          document.getElementById("result").textContent = "";
+          break;
+        }
+      }
+    }
+
+    function checkAnswer() {
+      const input = document.getElementById("answer").value.trim().toLowerCase();
+      const t = translations[currentLang];
+
+      const isCorrect = input === current.correct;
+      document.getElementById("result").textContent = isCorrect ? t.correctMsg : `${t.wrongMsg}${current.correct}`;
+      document.getElementById("result").style.color = isCorrect ? "green" : "red";
+
+      addToHistory(current, input, current.correct, isCorrect);
+      setTimeout(nextQuestion, 1500);
+    }
+
+    function getQuestionText(obj) {
+      const t = translations[currentLang];
+      const typeLabel = currentLang === "ru"
+        ? (obj.type === "определенный" ? "определённый артикль" : "неопределённый артикль")
+        : (obj.type === "определенный" ? "bestimmter Artikel" : "unbestimmter Artikel");
+
+      return `${typeLabel} ${t.prep1} ${obj.gender} ${t.prep2} ${obj.cas}`;
+    }
+
+    function addToHistory(currentObj, answer, correctAnswer, correct) {
+      const question = getQuestionText(currentObj);
+      history.unshift({ question, answer, correctAnswer, correct });
+      if (history.length > 20) history.pop();
+
+      const tbody = document.querySelector("#historyTable tbody");
+      tbody.innerHTML = "";
+      for (const row of history) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row.question}</td>
+          <td>${row.answer}</td>
+          <td>${row.correctAnswer}</td>
+          <td class="${row.correct ? 'correct' : 'wrong'}">${row.correct ? translations[currentLang].correctMsg.replace("✅ ", "") : translations[currentLang].wrongMsg.replace("❌ ", "")}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    window.onload = () => {
+        toggleLang(); // переключает язык
+        nextQuestion(); // запускает первый вопрос
+    };
+
+  </script>
+</body>
+</html>
